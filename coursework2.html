@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <title>View Tube Crowding Info</title>
+
+    <!-- imported scripts for this project -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.1/jquery.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+</head>
+
+<body>
+    <div class="container">
+        <div class="mb-3">
+            <h1>View crowding info at tube stations </h1>
+        </div>
+        <div>
+            <!-- naptan selection -->
+            <label for="station">Station:</label>
+            <select name="naptan" id="naptan">
+                <option value="940GZZLUPAC">Paddington</option>
+                <option value="940GZZLUKSX">King's Cross St Pancras</option>
+                <option value="940GZZLUEUS">Euston</option>
+                <option value="940GZZLUWLO">Waterloo</option>
+                <option value="940GZZLULNB">London Bridge</option>
+                <option value="940GZZLULVT">Liverpool Street</option>
+            </select>
+            <!-- day selection -->
+            <label for="day">Day of Week:</label>
+            <select name="day" id="day">
+                <option value="mon">Monday</option>
+                <option value="tue">Tuesday</option>
+                <option value="wed">Wednesday</option>
+                <option value="thu">Thursday</option>
+                <option value="fri">Friday</option>
+                <option value="sat">Saturday</option>
+                <option value="sun">Sunday</option>
+            </select>
+            <button type="button" class="btn btn-primary" onclick="onButtonClick();">View crowding info!</button>
+        </div>
+
+        <!-- displaying the chart, headers, and labels -->
+        <div><canvas id="myChart"></canvas></div>
+        <div style="margin-top:10px" , id="peaks"></div>
+        <h2>Table of Crowding </h2>
+        <div id="percent"></div>
+        <div id="output"></div>
+    </div>
+
+    <script type="text/javascript">
+
+        //What to do when the button gets clicked using ajax:
+        //using the user-entered naptan and day, pass it into the url
+        //API key is used as the app_key (passed in as a header)
+        const onButtonClick = () => {
+            const DayOfWeek = $("#day").val();
+            const Naptan = $("#naptan").val();
+
+            $.ajax({
+                type: "GET",
+                url: `https://api.tfl.gov.uk/crowding/${Naptan}/${DayOfWeek}`,
+                headers: {
+                    'app_key': 'a62b0a0b26bc4ba09756283aae3972ea'
+                },
+                success: function (body) {
+                    processJson(body);
+                }
+            })
+        }
+
+        //function that processes JSON data
+        const processJson = body => {
+            var labels = []
+            var crowding = []
+            var combined = []
+
+            //creating 'labels' and 'crowding' arrays
+            //combining them in 'combined' for display purposes
+            for (let i = 0; i < body.timeBands.length; i++) {
+                var time = body.timeBands[i].timeBand
+                var value = ((body.timeBands[i].percentageOfBaseLine) * 100).toFixed()
+                labels.push(time)
+                crowding.push(value)
+                combined.push(time + " " + value)
+            }
+
+            //creates peak times variables
+            const amPeakTimeBand = body.amPeakTimeBand
+            const pmPeakTimeBand = body.pmPeakTimeBand
+
+            //creates 'data' variable with 'labels' and 'crowding'
+            const data = {
+                labels: labels,
+                datasets: [{
+                    label: "Crowding",
+                    data: crowding,
+                }]
+            };
+
+            //destroys previous chart if it exists
+            let preexisting = Chart.getChart("myChart");
+            if (preexisting != undefined)
+                preexisting.destroy();
+        
+            //new bar chart is created using 'data'
+            //y axis is set to 0-100
+            const ctx = document.getElementById('myChart');
+            const config = new Chart(ctx, {
+                type: 'bar',
+                data: data,
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            suggestedMax: 100,
+                        }
+                    }
+                }
+            });
+
+            //peaks and timebands are formatted
+            const peaks = `<p> AM Peak: ${amPeakTimeBand}<\p> <p> PM Peak: ${pmPeakTimeBand}<\p>`
+            const listElements = combined.map(name => `<li style="line-height:1.4;">${name}</li>`).join("\n");
+            const newBody = `<ul style="list-style: none;">${listElements}</ul>`
+
+            //output the graph, peak times, and time band percentages
+            $("#peaks").html(peaks);
+            $("#percent").html(`<p>Time Band Crowding Percentage<\p>`)
+            $("#output").html(newBody);
+        }
+
+    </script>
+
+</body>
+
+</html>
